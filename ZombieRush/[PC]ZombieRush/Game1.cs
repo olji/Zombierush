@@ -56,7 +56,8 @@ namespace Game1
         SoundEffect gameOver;
         Song gameMusic;
 
-        Player Character = new Player(0, 0, 0.75f, Color.Violet);
+        Player player1 = new Player(0, 0, 0.75f, Color.Violet);
+        Player player2 = new Player(0, 0, 0.75f, Color.Aqua);
         List<Zombies> Zombie = new List<Zombies>();
         List<Rectangle> mapHitboxes = new List<Rectangle>();
         List<int> highScore = new List<int>();
@@ -125,10 +126,16 @@ namespace Game1
         #region Initialize
         protected override void Initialize()
         {
-            players.Add(Character);
-            playerControls.Add(Keys.Left, new Tuple<Player, ICommand>(Character, new moveLeftCommand()));
-            playerControls.Add(Keys.Right, new Tuple<Player, ICommand>(Character, new moveRightCommand()));
-            playerControls.Add(Keys.Up, new Tuple<Player, ICommand>(Character, new jumpCommand()));
+            players.Add(player1);
+            players.Add(player2);
+            playerControls.Add(Keys.Left, new Tuple<Player, ICommand>(player1, new moveLeftCommand()));
+            playerControls.Add(Keys.Right, new Tuple<Player, ICommand>(player1, new moveRightCommand()));
+            playerControls.Add(Keys.Up, new Tuple<Player, ICommand>(player1, new jumpCommand()));
+
+            // Dvorak user, change for regular wasd cluster or something more comfortable if you want
+            playerControls.Add(Keys.A, new Tuple<Player, ICommand>(player2, new moveLeftCommand()));
+            playerControls.Add(Keys.E, new Tuple<Player, ICommand>(player2, new moveRightCommand()));
+            playerControls.Add(Keys.OemComma, new Tuple<Player, ICommand>(player2, new jumpCommand()));
             base.Initialize();
         }
         #endregion
@@ -141,8 +148,15 @@ namespace Game1
             spriteBatch = new SpriteBatch(GraphicsDevice);
 
             // Loading graphics and fonts
+            foreach (Player player in players) {
+                player.corpse = Content.Load<Texture2D>("CharDead");
+                player.fSteps = Content.Load<SoundEffect>("footsteps");
+                player.lSound = Content.Load<SoundEffect>("land");
+                player.jSound = Content.Load<SoundEffect>("jump");
+                player.stepsInst = player.fSteps.CreateInstance();
+                player.stepsInst.IsLooped = true;
+            }
             playerSprite = Content.Load<Texture2D>("SpriteChart");
-            Character.corpse = Content.Load<Texture2D>("CharDead");
             GFX_titleScreen = Content.Load<Texture2D>("TitleScreen");
             startButton = Content.Load<Texture2D>("Startbutton");
             insaneButton = Content.Load<Texture2D>("InsaneButton");
@@ -168,17 +182,12 @@ namespace Game1
             soundEnabled = Content.Load<Texture2D>("SoundOn");
             soundDisabled = Content.Load<Texture2D>("SoundOff");
             credits = Content.Load<Texture2D>("Credits");
-            Character.fSteps = Content.Load<SoundEffect>("footsteps");
-            Character.lSound = Content.Load<SoundEffect>("land");
-            Character.jSound = Content.Load<SoundEffect>("jump");
             gameOver = Content.Load<SoundEffect>("Record Scratch");
             gameMusic = Content.Load<Song>("Music");
             spawnSheet = Content.Load<Texture2D>("ZombieSpawnSpriteSheet");
             gameFont = Content.Load<SpriteFont>("ScoreFont");
 
             //Creates a sound instance
-            Character.stepsInst = Character.fSteps.CreateInstance();
-            Character.stepsInst.IsLooped = true;
             box = new Texture2D(GraphicsDevice, 1, 1);
             box.SetData(new[] { Color.White });
         }
@@ -293,7 +302,8 @@ namespace Game1
                 {
                     //Calls on a method in the Level class for making a list of all the hitboxes for the map
                     mapHitboxes = Map.LevelCreator(mapHitboxes, graphics);
-                    Character.pos = new Vector2(graphics.GraphicsDevice.Viewport.Width / 2, graphics.GraphicsDevice.Viewport.Height / 2 - 35);
+                    player1.pos = new Vector2(graphics.GraphicsDevice.Viewport.Width / 2 - 15, graphics.GraphicsDevice.Viewport.Height / 2 - 35);
+                    player2.pos = new Vector2(graphics.GraphicsDevice.Viewport.Width / 2 + 15, graphics.GraphicsDevice.Viewport.Height / 2 - 35);
                 }
                 if (clickBox.Intersects(startBox))
                 {
@@ -469,56 +479,19 @@ namespace Game1
                     if (!nonIdle.Contains(player))
                         idle.execute(gameTime, player, soundOn);
                     player.pubPhysics();
+                    player.groundCollisionFunc(player, mapHitboxes, graphics);
                 }
-                //if (ks.IsKeyDown(Keys.Left)) {
-                //    //Restricts the jumping to when the character isn't in the air
-                //    if (ks.IsKeyDown(Keys.Up) && !Character.iAir)
-                //        Character.cJump = true;
-                //    else if (ks.IsKeyUp(Keys.Up))
-                //        Character.cJump = false;
-
-                //    if (Character.lEnable) {
-                //        //Sets the movement to left, and unlocks the movement to right that may have gotten disabled upon running into a wall
-                //        Character.contr = 'L';
-                //        if (!Character.rEnable)
-                //            Character.rEnable = true;
-                //    } else if (!Character.lEnable)
-                //        Character.contr = 'I';
-                //} else if (ks.IsKeyDown(Keys.Right)) {
-                //    //Restricts the jumping
-                //    if (ks.IsKeyDown(Keys.Up) && !Character.iAir)
-                //        Character.cJump = true;
-                //    else if (ks.IsKeyUp(Keys.Up))
-                //        Character.cJump = false;
-
-                //    if (Character.rEnable) {
-                //        //Sets movement to right and enables left movement if it has been disabled
-                //        Character.contr = 'R';
-                //        if (!Character.lEnable)
-                //            Character.lEnable = true;
-                //    } else if (!Character.rEnable)
-                //        Character.contr = 'I';
-                //} else
-                //    Character.contr = 'I';
-
-                //if (ks.IsKeyDown(Keys.Up) && !Character.iAir) {
-                //    Character.cJump = true;
-                //} else
-                //    Character.cJump = false;
-
                 #endregion
 
                 #region Movement Function
 
-                // Calls the function for the players movement and collision
-                //Character.playerMovement(gameTime, Character.contr, soundOn);
-                Character.groundCollisionFunc(Character, mapHitboxes, graphics);
+                // Calls the function for the players collision
 
                 //Calls movement and collision function for each zombie in the list
                 foreach (Zombies Enemy in Zombie)
                 {
-                    Enemy.enemyMovement(gameTime, Character, mapHitboxes);
-                    Enemy.groundCollisionFunc(Character, mapHitboxes, graphics);
+                    Enemy.enemyMovement(gameTime, player1, mapHitboxes);
+                    Enemy.groundCollisionFunc(player1, mapHitboxes, graphics);
                 }
 
                 #endregion
@@ -618,27 +591,24 @@ namespace Game1
                 {
                     //Resets the players position if he's colliding with a zombie
 
-                    if (Character.colBox.Intersects(Enemy.colBox) && !Character.cDead)
-                    {
-                        gameRunning = false;
+                    foreach (Player player in players) {
+                        if (player.colBox.Intersects(Enemy.colBox) && !player.cDead) {
+                            gameRunning = false;
 
-                        MediaPlayer.Stop();
-                        if (soundOn)
-                            gameOver.Play();
-                        Character.cDead = true;
-                        break;
-                    }
-                    else if (Character.colBox.Intersects(Enemy.colBox) && Character.cDead)
-                    {
-                        Enemy.stop = true;
-                    }
-                    else if (!Character.colBox.Intersects(Enemy.colBox) && Character.cDead)
-                    {
-                        Enemy.stop = false;
+                            MediaPlayer.Stop();
+                            if (soundOn)
+                                gameOver.Play();
+                            player.cDead = true;
+                            break;
+                        } else if (player.colBox.Intersects(Enemy.colBox) && player.cDead) {
+                            Enemy.stop = true;
+                        } else if (!player.colBox.Intersects(Enemy.colBox) && player.cDead) {
+                            Enemy.stop = false;
+                        }
                     }
                 }
             }
-            if (Character.cDead)
+            if (player1.cDead)
                 deathDelay += gameTime.ElapsedGameTime.Milliseconds;
             if (deathDelay >= 2000)
             {
@@ -817,7 +787,8 @@ namespace Game1
                 Rectangle MoveTmp = new Rectangle();
 
                 //Calls the drawfunction for the player and zombie sprites
-                Character.drawFunc(spriteBatch, playerSprite, MoveTmp, box);
+                foreach(Player player in players)
+                    player.drawFunc(spriteBatch, playerSprite, MoveTmp, box);
 
                 foreach (Zombies Enemy in Zombie)
                     Enemy.drawChoice(spriteBatch, playerSprite, MoveTmp, box);
@@ -847,15 +818,17 @@ namespace Game1
 
         protected void reset()
         {
-            Character.cDead = false;
+            foreach (Player player in players) {
+                player.cDead = false;
+                player.pos = new Vector2(graphics.GraphicsDevice.Viewport.Width / 2, graphics.GraphicsDevice.Viewport.Height / 2 - 35);
+                player.lEnable = true;
+                player.rEnable = true;
+            }
             Zombie.Clear();
 
             highScoreSave();
             scoreTotal = 0;
             getReady = 0;
-            Character.pos = new Vector2(graphics.GraphicsDevice.Viewport.Width / 2, graphics.GraphicsDevice.Viewport.Height / 2 - 35);
-            Character.lEnable = true;
-            Character.rEnable = true;
             runOnce = false;
             gameRunning = true;
             deathScreen = false;
