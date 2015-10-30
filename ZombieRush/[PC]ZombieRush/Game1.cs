@@ -14,7 +14,13 @@ namespace Game1
 {
     public class Game1 : Microsoft.Xna.Framework.Game
     {
+        Dictionary<Keys, Tuple<Player, ICommand>> playerControls = new Dictionary<Keys, Tuple<Player, ICommand>>();
+        List<Player> players = new List<Player>();
+        ICommand idle = new idleCommand();
+
         #region Variables
+
+
         //Create variables
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
@@ -119,6 +125,10 @@ namespace Game1
         #region Initialize
         protected override void Initialize()
         {
+            players.Add(Character);
+            playerControls.Add(Keys.Left, new Tuple<Player, ICommand>(Character, new moveLeftCommand()));
+            playerControls.Add(Keys.Right, new Tuple<Player, ICommand>(Character, new moveRightCommand()));
+            playerControls.Add(Keys.Up, new Tuple<Player, ICommand>(Character, new jumpCommand()));
             base.Initialize();
         }
         #endregion
@@ -445,59 +455,63 @@ namespace Game1
                 #endregion
 
                 #region Control
-                if (ks.IsKeyDown(Keys.Left))
-                {
-                    //Restricts the jumping to when the character isn't in the air
-                    if (ks.IsKeyDown(Keys.Up) && !Character.iAir)
-                        Character.cJump = true;
-                    else if (ks.IsKeyUp(Keys.Up))
-                        Character.cJump = false;
-
-                    if (Character.lEnable)
-                    {
-                        //Sets the movement to left, and unlocks the movement to right that may have gotten disabled upon running into a wall
-                        Character.contr = 'L';
-                        if (!Character.rEnable)
-                            Character.rEnable = true;
+                // Apply controls
+                List<Player> nonIdle = new List<Player>();
+                foreach (Keys key in ks.GetPressedKeys()) {
+                    Tuple<Player, ICommand> value = null;
+                    if (playerControls.TryGetValue(key, out value)) {
+                        value.Item2.execute(gameTime, value.Item1, soundOn);
+                        nonIdle.Add(value.Item1);
                     }
-
-                    else if (!Character.lEnable)
-                        Character.contr = 'I';
                 }
-                else if (ks.IsKeyDown(Keys.Right))
-                {
-                    //Restricts the jumping
-                    if (ks.IsKeyDown(Keys.Up) && !Character.iAir)
-                        Character.cJump = true;
-                    else if (ks.IsKeyUp(Keys.Up))
-                        Character.cJump = false;
-
-                    if (Character.rEnable)
-                    {
-                        //Sets movement to right and enables left movement if it has been disabled
-                        Character.contr = 'R';
-                        if (!Character.lEnable)
-                            Character.lEnable = true;
-                    }
-                    else if (!Character.rEnable)
-                        Character.contr = 'I';
+                // Apply physics
+                foreach (Player player in players) {
+                    if (!nonIdle.Contains(player))
+                        idle.execute(gameTime, player, soundOn);
+                    player.pubPhysics();
                 }
-                else
-                    Character.contr = 'I';
+                //if (ks.IsKeyDown(Keys.Left)) {
+                //    //Restricts the jumping to when the character isn't in the air
+                //    if (ks.IsKeyDown(Keys.Up) && !Character.iAir)
+                //        Character.cJump = true;
+                //    else if (ks.IsKeyUp(Keys.Up))
+                //        Character.cJump = false;
 
-                if (ks.IsKeyDown(Keys.Up) && !Character.iAir)
-                {
-                    Character.cJump = true;
-                }
-                else
-                    Character.cJump = false;
+                //    if (Character.lEnable) {
+                //        //Sets the movement to left, and unlocks the movement to right that may have gotten disabled upon running into a wall
+                //        Character.contr = 'L';
+                //        if (!Character.rEnable)
+                //            Character.rEnable = true;
+                //    } else if (!Character.lEnable)
+                //        Character.contr = 'I';
+                //} else if (ks.IsKeyDown(Keys.Right)) {
+                //    //Restricts the jumping
+                //    if (ks.IsKeyDown(Keys.Up) && !Character.iAir)
+                //        Character.cJump = true;
+                //    else if (ks.IsKeyUp(Keys.Up))
+                //        Character.cJump = false;
+
+                //    if (Character.rEnable) {
+                //        //Sets movement to right and enables left movement if it has been disabled
+                //        Character.contr = 'R';
+                //        if (!Character.lEnable)
+                //            Character.lEnable = true;
+                //    } else if (!Character.rEnable)
+                //        Character.contr = 'I';
+                //} else
+                //    Character.contr = 'I';
+
+                //if (ks.IsKeyDown(Keys.Up) && !Character.iAir) {
+                //    Character.cJump = true;
+                //} else
+                //    Character.cJump = false;
 
                 #endregion
 
                 #region Movement Function
 
-                //Calls the function for the players movement and collision
-                Character.playerMovement(gameTime, Character.contr, soundOn);
+                // Calls the function for the players movement and collision
+                //Character.playerMovement(gameTime, Character.contr, soundOn);
                 Character.groundCollisionFunc(Character, mapHitboxes, graphics);
 
                 //Calls movement and collision function for each zombie in the list

@@ -30,7 +30,7 @@ namespace Game1
         protected float maxSpeed = 5f;
         protected Color playerColor = Color.Black;
         protected bool inAir = false, airCheck = true, fallCheck = false, jumpCheck = false, charDead = false;
-        protected bool flipped = false, jump = false, runCheck = false, rightEnabled = true, leftEnabled = true;
+        protected bool flipped = false, bjump = false, runCheck = false, rightEnabled = true, leftEnabled = true;
         protected char control;
         protected SoundEffect footSteps;
         protected SoundEffect jumpSound;
@@ -90,6 +90,14 @@ namespace Game1
         {
             get { return animationSpeed; }
         }
+        public float momentumX{
+            get { return momentum.X; }
+            set { momentum.X = value; }
+        }
+        public float momentumY {
+            get { return momentum.Y; }
+            set { momentum.Y = value; }
+        }
         public Vector2 pMomentum
         {
             get { return momentum; }
@@ -111,8 +119,8 @@ namespace Game1
         }
         public bool cJump
         {
-            get { return jump; }
-            set { jump = value; }
+            get { return bjump; }
+            set { bjump = value; }
         }
         public float grav
         {
@@ -185,82 +193,69 @@ namespace Game1
             if (charDead)
                 tControl = 'I';
             // **********PLAYER MOVEMENT***********
-                // Calls jump function if you're not in the air
-                if (jump && !inAir && !charDead)
-                {
-                    JumpFunc();
-                    if (soundOn)
+            // Calls jump function if you're not in the air
+            if (bjump && !inAir && !charDead) {
+                JumpFunc();
+                if (soundOn)
                     jumpSound.Play();
-                }
+            }
 
-                // Sets the running animation for running to the left, and adds velocity to that direction
-                if (tControl == 'L' && !charDead)
-                {
-                    runCheck = true;
-                    flipped = false;
+            // Sets the running animation for running to the left, and adds velocity to that direction
+            if (tControl == 'L' && !charDead) {
+                runCheck = true;
+                flipped = false;
+                if (runFrame > 11)
+                    runFrame = 6;
+                runTime += gameTime.ElapsedGameTime.Milliseconds;
+                if (runTime >= animationSpeed) {
+                    runTime = 0;
+                    runFrame++;
                     if (runFrame > 11)
                         runFrame = 6;
-                    runTime += gameTime.ElapsedGameTime.Milliseconds;
-                    if (runTime >= animationSpeed)
-                    {
-                        runTime = 0;
-                        runFrame++;
-                        if (runFrame > 11)
-                            runFrame = 6;
-                    }
-
-                    if (steps.State == SoundState.Stopped && !inAir && soundOn)
-                    {
-                        steps.Volume = 0.1f;
-                        steps.Play();
-                    }
-
-                    momentum.X -= runAcc;
-                    if (momentum.X < -maxSpeed)
-                        momentum.X = -maxSpeed;
                 }
-                else if (runCheck)
-                    runCheck = false;
 
-                // Adds velocity to the right and animates the frames
-                if (tControl == 'R' && !charDead)
-                {
-                    flipped = true;
-                    runCheck = true;
-                    if (runFrame < 12)
+                if (steps.State == SoundState.Stopped && !inAir && soundOn) {
+                    steps.Volume = 0.1f;
+                    steps.Play();
+                }
+
+                momentum.X -= runAcc;
+                if (momentum.X < -maxSpeed)
+                    momentum.X = -maxSpeed;
+            } else if (runCheck)
+                runCheck = false;
+
+            // Adds velocity to the right and animates the frames
+            if (tControl == 'R' && !charDead) {
+                flipped = true;
+                runCheck = true;
+                if (runFrame < 12)
+                    runFrame = 12;
+                runTime += gameTime.ElapsedGameTime.Milliseconds;
+                if (runTime >= animationSpeed) {
+                    runTime = 0;
+
+                    runFrame++;
+                    if (runFrame > 17)
                         runFrame = 12;
-                    runTime += gameTime.ElapsedGameTime.Milliseconds;
-                    if (runTime >= animationSpeed)
-                    {
-                        runTime = 0;
-
-                        runFrame++;
-                        if (runFrame > 17)
-                            runFrame = 12;
-                    }
-
-                    if (steps.State == SoundState.Stopped && !inAir && soundOn)
-                    {
-                        steps.Volume = 0.1f;
-                        steps.Pitch = 0.5f;
-                        steps.Play();
-                    }
-
-                    momentum.X += runAcc;
-                    if (momentum.X > maxSpeed)
-                        momentum.X = maxSpeed;
                 }
-                else if (tControl == 'I')
-                {
-                    steps.Stop();
-                    moveState = 0;
+
+                if (steps.State == SoundState.Stopped && !inAir && soundOn) {
+                    steps.Volume = 0.1f;
+                    steps.Pitch = 0.5f;
+                    steps.Play();
                 }
-                if (momentum.Y != 0)
-                    steps.Stop();
-            //Calls on the method for physics
-            if (charDead)
-            {
+
+                momentum.X += runAcc;
+                if (momentum.X > maxSpeed)
+                    momentum.X = maxSpeed;
+            } else if (tControl == 'I') {
+                steps.Stop();
+                moveState = 0;
             }
+            if (momentum.Y != 0)
+                steps.Stop();
+            //Calls on the method for physics
             physics();
         }
         #endregion
@@ -379,10 +374,15 @@ namespace Game1
         #endregion
 
         #region Physics
+        public void pubPhysics() {
+            physics();
+        }
         protected virtual void physics()
         {
             // ********PHYSICS*************
-
+            if (momentum.Y < -10) {
+                bool x = true;
+            }
             //Adds friction and a full stop when the momentum is very low
             if (!inAir)
             {
@@ -394,14 +394,14 @@ namespace Game1
             }
 
             //Adds gravity and sets the state of the character to falling when he's moving downwards
-            else if (iAir)
+            else if (inAir)
             {
                 momentum.Y += gravity;
 
-                if (momentum.Y > 0)
+                if (momentum.Y >= 0)
                 {
-                    fCheck = true;
-                    moveState = 2;
+                    fallCheck = true;
+                    movementState = 2;
                 }
             }
             //Puts a cap on the fallspeed
